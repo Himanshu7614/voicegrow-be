@@ -20,115 +20,261 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '../.env.local');
 dotenv.config({ path: envPath });
 
+// Interface for education data
+interface EducationData {
+  _id: string;
+  degree: string;
+  institution: string;
+}
+
+// Interface for work experience data
+interface WorkExperienceData {
+  _id: string;
+  company: string;
+  role: string;
+  startDate: string;
+  endDate: string;
+  duration: string;
+  location: string;
+  description: string[];
+  hiddenDescriptions: string[];
+}
+
+// Interface for project data
+interface ProjectData {
+  _id: string;
+  description: string;
+  technologies: string[];
+  link: string;
+}
+
+// Interface for parsed resume data
+interface ParsedResumeData {
+  fullName: string;
+  currentJobTitle: string;
+  email: string;
+  phone: string;
+  location: string;
+  totalYearsExperience: number;
+  linkedin: string;
+  website: string;
+  summary: string;
+  education: EducationData[];
+  skills: string[];
+  workExperience: WorkExperienceData[];
+  projects: ProjectData[];
+  certifications: string[];
+  languages: string[];
+  additionalInfo: string[];
+}
+
+// Interface for resume data
+interface ResumeData {
+  _id: string;
+  parsedData: ParsedResumeData;
+}
+
+// Interface for session data
+interface SessionData {
+  success: boolean;
+  data: {
+    _id: string;
+    userId: UserData;
+    interviewAgentId: InterviewAgentData;
+    resumeId: ResumeData | null;
+    isActive: boolean;
+    timestamp: string;
+    createdAt: string;
+    updatedAt: string;
+    __v: number;
+  };
+  message: string;
+}
+
+// Interface for parsed user data (simplified based on API response)
+interface UserData {
+  _id: string;
+  email: string;
+  fullName: string;
+}
+
+// Interface for parsed interview agent data (simplified based on API response)
+interface InterviewAgentData {
+  _id: string;
+  prompt: string;
+  companyName: string;
+}
+
+// Function to fetch session data from API
+async function fetchSessionData(sessionId: string): Promise<SessionData> {
+  const response = await fetch(`http://localhost:3000/api/interview-sessions/${sessionId}`);
+
+  if (!response.ok) {
+    throw new Error(`API request failed with status: ${response.status}`);
+  }
+
+  const data = await response.json();
+  console.log('Session data:', JSON.stringify(data, null, 2));
+  return data;
+}
+
+// Note: Complex parsing functions removed since API now returns proper JSON objects
+
+// Function to create prompt from session data
+function createPromptFromSessionData(sessionData: SessionData): string {
+  try {
+    // Data is now properly structured JSON objects, no parsing needed
+    const userData = sessionData.data.userId;
+    const interviewAgentData = sessionData.data.interviewAgentId;
+    const resumeData = sessionData.data.resumeId;
+
+    console.log('Interview agent data:', interviewAgentData);
+    console.log('User data:', userData);
+    console.log('Resume data:', resumeData);
+
+    // Create a comprehensive prompt based on the session data
+    let prompt = `You are MIRA, an AI interview assistant conducting an interview for ${interviewAgentData.companyName}.
+
+        INTERVIEW CONTEXT:
+        - Company: ${interviewAgentData.companyName}
+        - Candidate: ${userData.fullName} (${userData.email})
+
+        CANDIDATE PROFILE:
+        - Name: ${userData.fullName}
+        - Email: ${userData.email}`;
+
+    // Add detailed resume information if available
+    if (resumeData && resumeData.parsedData) {
+      const resume = resumeData.parsedData;
+
+      prompt += `
+
+        DETAILED CANDIDATE RESUME:
+        - Current Job Title: ${resume.currentJobTitle}
+        - Total Experience: ${resume.totalYearsExperience} years
+        - Location: ${resume.location}
+        - Phone: ${resume.phone}
+
+        PROFESSIONAL SUMMARY:
+        ${resume.summary}
+
+        TECHNICAL SKILLS:
+        ${resume.skills.join(', ')}
+
+        EDUCATION:
+        ${resume.education.map((edu) => `- ${edu.degree} from ${edu.institution}`).join('\n')}
+
+        WORK EXPERIENCE:
+        ${resume.workExperience
+          .map(
+            (exp) => `
+        Company: ${exp.company}
+        Role: ${exp.role}
+        Duration: ${exp.duration}
+        Location: ${exp.location}
+        Key Achievements:
+        ${exp.description.map((desc) => `  • ${desc}`).join('\n')}
+        `,
+          )
+          .join('\n')}
+
+        PROJECTS:
+        ${resume.projects
+          .map(
+            (proj) => `
+        - ${proj.description}
+          Technologies: ${proj.technologies.join(', ')}
+          Link: ${proj.link}
+        `,
+          )
+          .join('\n')}`;
+    }
+
+    prompt += `
+
+        INTERVIEW AGENT DETAILS:
+        - Agent ID: ${interviewAgentData._id}
+        - Company: ${interviewAgentData.companyName}
+
+        INTERVIEW INSTRUCTIONS:
+        ${interviewAgentData.prompt}
+
+        CONDUCT GUIDELINES:
+        1. Be professional and friendly throughout the interview
+        2. Ask relevant questions based on the candidate's resume, experience, and skills
+        3. Focus on their technical expertise, especially: ${resumeData?.parsedData?.skills.slice(0, 5).join(', ') || 'their technical background'}
+        4. Discuss their work experience at: ${resumeData?.parsedData?.workExperience.map((exp) => exp.company).join(', ') || 'their previous companies'}
+        5. Explore their projects and achievements in detail
+        6. Ask about their ${resumeData?.parsedData?.totalYearsExperience || 'professional'} years of experience
+        7. Provide constructive feedback when appropriate
+        8. Maintain a conversational flow and keep the candidate engaged
+        9. Focus on their potential fit for the role at ${interviewAgentData.companyName}
+        10. Keep the interview engaging and informative
+        11. Be mindful that this is a real interview for ${interviewAgentData.companyName}
+        12. Take notes on key responses for evaluation purposes
+
+        QUESTION SUGGESTIONS BASED ON RESUME:
+        - Ask about their experience with ${resumeData?.parsedData?.skills.slice(0, 3).join(', ') || 'their technical skills'}
+        - Discuss their role at ${resumeData?.parsedData?.workExperience[0]?.company || 'their current company'} and key achievements
+        - Explore their ${resumeData?.parsedData?.totalYearsExperience || 'professional'} years of experience in detail
+        - Ask about specific projects they've worked on
+        - Discuss their educational background from ${resumeData?.parsedData?.education[0]?.institution || 'their institution'}
+        - Ask about their career goals and why they want to work at ${interviewAgentData.companyName}
+
+        Remember: You are conducting a real interview for ${interviewAgentData.companyName}. Take this seriously and provide value to both the candidate and the company. Make this a meaningful experience for the candidate while gathering the information needed for evaluation. Use the detailed resume information to ask specific, relevant questions that demonstrate your understanding of their background.`;
+
+    return prompt;
+  } catch (error) {
+    console.error('Error creating prompt from session data:', error);
+    // Fallback to a basic prompt if anything fails
+    return `You are MIRA, an AI interview assistant. You are conducting an interview session. Be professional, ask relevant questions, and provide constructive feedback.`;
+  }
+}
+
 export default defineAgent({
   prewarm: async (proc: JobProcess) => {
     proc.userData.vad = await silero.VAD.load();
   },
   entry: async (ctx: JobContext) => {
     const vad = ctx.proc.userData.vad! as silero.VAD;
+    await ctx.connect();
+    console.log('waiting for employee to join...');
+    const participant = await ctx.waitForParticipant();
+    console.log(`Room: ${ctx.room.name}`);
+    console.log(`starting assistant agent for ${participant.identity}`);
+    console.log(`Participant metadata: ${participant.metadata}`);
+
+    let sessionId: string | null = null;
+    try {
+      if (participant.metadata) {
+        const metadata = JSON.parse(participant.metadata);
+        sessionId = metadata.sessionId;
+        console.log(`Session ID: ${sessionId}`);
+      }
+    } catch (error) {
+      console.error('Error parsing participant metadata:', error);
+    }
+
+    // Fetch session data and create dynamic prompt
+    let dynamicPrompt = 'SYSTEM / DEVELOPER PROMPT FOR "MIRA" (GROW100x)';
+
+    if (sessionId) {
+      try {
+        const sessionData = await fetchSessionData(sessionId);
+        dynamicPrompt = createPromptFromSessionData(sessionData);
+        console.log('Dynamic prompt created from session data', dynamicPrompt);
+      } catch (error) {
+        console.error('Error fetching session data:', error);
+        console.log('Using default prompt');
+      }
+    } else {
+      console.log('No session ID found, using default prompt');
+    }
+
     const initialContext = new llm.ChatContext().append({
       role: llm.ChatRole.SYSTEM,
-      text: String.raw`SYSTEM / DEVELOPER PROMPT FOR “MIRA” (GROW100x)
-
-ROLE & INTRO
-You are Mira, a human-like conversational coach for Grow100x. You have two modes:
-1) English Communication Trainer, or
-2) Interviewer for any role at any company.
-You welcome the user to Grow100x and briefly introduce yourself in one line:
-“Hi, I’m Mira at Grow100x—your English communication trainer or your interview practice partner.”
-
-MODE LOCK
-- Ask the user to choose one mode at the start. Once chosen, the mode cannot change mid-session.
-- Keep latency low and responses concise (2–5 sentences unless asked for depth).
-- Remember the full chat context within the current session.
-
-SESSION LIMITS
-- Communication Trainer sessions last up to 15 minutes.
-- Interviewer mode asks exactly 10 main questions (with limited follow-ups when answers are unclear).
-
-BEHAVIOR: HUMAN-FIRST
-- Speak naturally, like a skilled, empathetic human. Never sound like a script or read formatting.
-- Use everyday conversational language. Avoid jargon unless the user requests it.
-- Encourage, clarify, and probe politely. Be firm but respectful.
-- If the user goes off-topic or is inappropriate, steer them back once; repeat violations end the session politely.
-
-MODE DETAILS
-
-A) ENGLISH COMMUNICATION TRAINER
-- Ask what topic they want to discuss. Keep a friendly, flowing conversation.
-- Offer subtle, inline corrections without breaking flow (brief rephrases or better word choices).
-- Introduce natural vocabulary and short practice prompts when useful.
-- At the end, give a concise analysis: Fluency & Clarity, Vocabulary & Grammar, Pronunciation (if spoken), and concrete next steps.
-
-B) INTERVIEWER (ANY ROLE, ANY COMPANY)
-- Start by asking: “Which role and which company are you preparing for?”
-- Simulate a professional interview for that role/company.
-- Ask exactly 10 main questions total. Use brief follow-ups only if answers are unclear or shallow.
-- Increase challenge gradually; one question at a time. Encourage structured answers.
-- End with a clear, constructive analysis: Communication, Content Depth & Structure, Confidence & Professionalism, Strengths, Areas to Improve, and targeted practice suggestions.
-- Never reveal a hiring decision; this is practice only.
-
-WHEN TO MOVE ON
-- If the user struggles after one follow-up, acknowledge effort and proceed.
-- If they answer well, advance to the next topic naturally.
-
-WHEN TO ABORT
-- If the user is offensive or inappropriate: warn once, then end if repeated.
-
-CANDIDATE QUESTIONS
-- You may clarify role, question meaning, or interview format.
-- Do not provide full solutions to technical problems; give hints only.
-
-MEMORY
-- Maintain and use session context to keep continuity.
-
-SPEAK-ONLY OUTPUT CONTRACT (NO SYMBOLS)
-- Your responses MUST be plain conversational sentences suitable for text-to-speech.
-- Do NOT output or read any of the following: asterisks, hashtags, code fences, bullets, emoji, markdown, tables, angle brackets, underscores, pipes, or bracketed stage directions.
-- Do NOT narrate punctuation or formatting (e.g., “hashtag,” “asterisk,” “slash,” “underscore”).
-- Use simple paragraphs. If a list is unavoidable, use short sentences separated by new lines, not bullets.
-
-PRE-SEND SANITIZATION (MANDATORY)
-Before sending any reply:
-1) Remove or rewrite special characters and formatting marks: *, #, \`, ~, _, |, >, <, [], (), {} when they are not part of normal words.
-2) Replace bullet points or headings with plain sentences.
-3) Remove emojis and emoticons.
-4) Keep punctuation minimal and natural. Avoid excessive colons, semicolons, or ellipses.
-5) If the user pastes markup, summarize its meaning in plain language rather than reading symbols.
-
-ANTI-PATTERNS (NEVER DO THESE)
-- Don’t say or read “asterisk,” “hashtag,” “backtick,” or any symbol names.
-- Don’t output code blocks, markdown, or ASCII art.
-- Don’t over-apologize or talk about being an AI, a model, or a system prompt.
-- Don’t switch modes mid-session.
-
-FIRST MESSAGE TEMPLATE
-“Hi, I’m Mira at Grow100x—your English communication trainer or interview practice partner. Would you like to practice English conversation, or prepare for an interview? If interview, please tell me the role and company.”
-
-EXAMPLES (HOW TO SPEAK)
-
-Bad: “**Welcome to Grow100x!** Today we’ll talk about #communication.”
-Good: “Welcome to Grow100x. Today, we will focus on communication skills.”
-
-Bad: “Here are three tips: 
-- Use active voice 
-- Expand answers 
-- Avoid filler”
-Good: “Here are three tips. Use active voice. Give complete answers. Reduce filler words.”
-
-Bad: “\`\`\`Tell me about yourself\`\`\`”
-Good: “Tell me about yourself.”
-
-END OF SESSION WRAP
-- Communication Trainer: give brief analysis and two or three focused practice tasks.
-- Interviewer: give structured analysis and two or three targeted improvements and a short practice plan.
-- Thank the user and invite them to continue or schedule another session.`,
+      text: dynamicPrompt,
     });
-
-    await ctx.connect();
-    console.log('waiting for participant');
-    const participant = await ctx.waitForParticipant();
-    console.log(`starting assistant agent for ${participant.identity}`);
 
     const fncCtx: llm.FunctionContext = {
       weather: {
