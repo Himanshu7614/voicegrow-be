@@ -108,8 +108,7 @@ interface InterviewAgentData {
 // Function to fetch session data from API
 async function fetchSessionData(sessionId: string): Promise<SessionData> {
   try {
-    console.log(`Attempting to fetch session data for sessionId: ${sessionId}`);
-    const response = await fetch(`https://api.grow100x.com/api/interview-sessions/${sessionId}`);
+    const response = await fetch(`http://localhost:3000/api/interview-sessions/${sessionId}`);
 
     if (!response.ok) {
       console.error(`API request failed with status: ${response.status}, statusText: ${response.statusText}`);
@@ -117,7 +116,6 @@ async function fetchSessionData(sessionId: string): Promise<SessionData> {
     }
 
     const data = await response.json();
-    console.log('Session data received:', JSON.stringify(data, null, 2));
     
     // Validate the data structure
     if (!data || !data.data) {
@@ -137,8 +135,6 @@ async function fetchSessionData(sessionId: string): Promise<SessionData> {
 // Function to create prompt from session data
 function createPromptFromSessionData(sessionData: SessionData): string {
   try {
-    console.log('Creating prompt from session data...');
-    
     // Validate required data exists
     if (!sessionData.data) {
       throw new Error('Session data is missing');
@@ -156,11 +152,6 @@ function createPromptFromSessionData(sessionData: SessionData): string {
     const userData = sessionData.data.userId;
     const interviewAgentData = sessionData.data.interviewAgentId;
     const resumeData = sessionData.data.resumeId;
-
-    console.log('Interview agent data:', interviewAgentData);
-    console.log('User data:', userData);
-    console.log('Resume data:', resumeData);
-    console.log('Rounds data:', sessionData.data.rounds);
 
     // Create a comprehensive prompt based on the session data
     let prompt = `You are MIRA, an AI interview assistant conducting an interview for ${interviewAgentData.companyName}.
@@ -277,18 +268,13 @@ export default defineAgent({
   entry: async (ctx: JobContext) => {
     const vad = ctx.proc.userData.vad! as silero.VAD;
     await ctx.connect();
-    console.log('waiting for employee to join...');
     const participant = await ctx.waitForParticipant();
-    console.log(`Room: ${ctx.room.name}`);
-    console.log(`starting assistant agent for ${participant.identity}`);
-    console.log(`Participant metadata: ${participant.metadata}`);
 
     let sessionId: string | null = null;
     try {
       if (participant.metadata) {
         const metadata = JSON.parse(participant.metadata);
         sessionId = metadata.sessionId;
-        console.log(`Session ID: ${sessionId}`);
       }
     } catch (error) {
       console.error('Error parsing participant metadata:', error);
@@ -299,18 +285,14 @@ export default defineAgent({
 
     if (sessionId) {
       try {
-        console.log(`Fetching session data for sessionId: ${sessionId}`);
         const sessionData = await fetchSessionData(sessionId);
-        console.log('Session data fetched successfully, creating prompt...');
         dynamicPrompt = createPromptFromSessionData(sessionData);
-        console.log('Dynamic prompt created successfully from session data');
       } catch (error) {
         console.error('Error fetching or processing session data:', error);
         console.error('Error details:', {
           message: error instanceof Error ? error.message : 'Unknown error',
           stack: error instanceof Error ? error.stack : undefined
         });
-        console.log('Using default prompt due to error');
       }
     } else {
       console.log('No session ID found in participant metadata, using default prompt');
@@ -340,7 +322,6 @@ export default defineAgent({
     };
 
     try {
-      console.log('Initializing VoicePipelineAgent...');
       const agent = new pipeline.VoicePipelineAgent(
         vad,
         new deepgram.STT({ model: 'nova-3-general', language: 'en-US' }),
@@ -357,9 +338,7 @@ export default defineAgent({
         { chatCtx: initialContext, fncCtx },
       );
       
-      console.log('Starting agent...');
       agent.start(ctx.room, participant);
-      console.log('Agent started successfully');
     } catch (error) {
       console.error('Error initializing or starting agent:', error);
       console.error('Agent error details:', {
