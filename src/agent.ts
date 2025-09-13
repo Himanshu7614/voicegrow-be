@@ -32,8 +32,6 @@ interface WorkExperienceData {
   _id: string;
   company: string;
   role: string;
-  startDate: string;
-  endDate: string;
   duration: string;
   location: string;
   description: string[];
@@ -82,6 +80,7 @@ interface SessionData {
     userId: UserData;
     interviewAgentId: InterviewAgentData;
     resumeId: ResumeData | null;
+    rounds:string
     isActive: boolean;
     timestamp: string;
     createdAt: string;
@@ -103,19 +102,34 @@ interface InterviewAgentData {
   _id: string;
   prompt: string;
   companyName: string;
+  interviewBehavior?: string;
 }
 
 // Function to fetch session data from API
 async function fetchSessionData(sessionId: string): Promise<SessionData> {
-  const response = await fetch(`http://localhost:3000/api/interview-sessions/${sessionId}`);
+  try {
+    console.log(`Attempting to fetch session data for sessionId: ${sessionId}`);
+    const response = await fetch(`https://api.grow100x.com/api/interview-sessions/${sessionId}`);
 
-  if (!response.ok) {
-    throw new Error(`API request failed with status: ${response.status}`);
+    if (!response.ok) {
+      console.error(`API request failed with status: ${response.status}, statusText: ${response.statusText}`);
+      throw new Error(`API request failed with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('Session data received:', JSON.stringify(data, null, 2));
+    
+    // Validate the data structure
+    if (!data || !data.data) {
+      console.error('Invalid session data structure:', data);
+      throw new Error('Invalid session data structure received from API');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in fetchSessionData:', error);
+    throw error;
   }
-
-  const data = await response.json();
-  console.log('Session data:', JSON.stringify(data, null, 2));
-  return data;
 }
 
 // Note: Complex parsing functions removed since API now returns proper JSON objects
@@ -123,6 +137,21 @@ async function fetchSessionData(sessionId: string): Promise<SessionData> {
 // Function to create prompt from session data
 function createPromptFromSessionData(sessionData: SessionData): string {
   try {
+    console.log('Creating prompt from session data...');
+    
+    // Validate required data exists
+    if (!sessionData.data) {
+      throw new Error('Session data is missing');
+    }
+    
+    if (!sessionData.data.userId) {
+      throw new Error('User data is missing from session');
+    }
+    
+    if (!sessionData.data.interviewAgentId) {
+      throw new Error('Interview agent data is missing from session');
+    }
+    
     // Data is now properly structured JSON objects, no parsing needed
     const userData = sessionData.data.userId;
     const interviewAgentData = sessionData.data.interviewAgentId;
@@ -131,6 +160,7 @@ function createPromptFromSessionData(sessionData: SessionData): string {
     console.log('Interview agent data:', interviewAgentData);
     console.log('User data:', userData);
     console.log('Resume data:', resumeData);
+    console.log('Rounds data:', sessionData.data.rounds);
 
     // Create a comprehensive prompt based on the session data
     let prompt = `You are MIRA, an AI interview assistant conducting an interview for ${interviewAgentData.companyName}.
@@ -138,6 +168,8 @@ function createPromptFromSessionData(sessionData: SessionData): string {
         INTERVIEW CONTEXT:
         - Company: ${interviewAgentData.companyName}
         - Candidate: ${userData.fullName} (${userData.email})
+        - Interview Rounds: ${sessionData.data.rounds}
+        - Interview Behavior: ${interviewAgentData.interviewBehavior || 'Standard professional interview'}
 
         CANDIDATE PROFILE:
         - Name: ${userData.fullName}
@@ -195,31 +227,38 @@ function createPromptFromSessionData(sessionData: SessionData): string {
         INTERVIEW AGENT DETAILS:
         - Agent ID: ${interviewAgentData._id}
         - Company: ${interviewAgentData.companyName}
+        - Interview Rounds: ${sessionData.data.rounds}
+        - Interview Behavior: ${interviewAgentData.interviewBehavior || 'Standard professional interview'}
 
         INTERVIEW INSTRUCTIONS:
         ${interviewAgentData.prompt}
 
         CONDUCT GUIDELINES:
-        1. Be professional and friendly throughout the interview
-        2. Ask relevant questions based on the candidate's resume, experience, and skills
-        3. Focus on their technical expertise, especially: ${resumeData?.parsedData?.skills.slice(0, 5).join(', ') || 'their technical background'}
-        4. Discuss their work experience at: ${resumeData?.parsedData?.workExperience.map((exp) => exp.company).join(', ') || 'their previous companies'}
-        5. Explore their projects and achievements in detail
-        6. Ask about their ${resumeData?.parsedData?.totalYearsExperience || 'professional'} years of experience
-        7. Provide constructive feedback when appropriate
-        8. Maintain a conversational flow and keep the candidate engaged
-        9. Focus on their potential fit for the role at ${interviewAgentData.companyName}
-        10. Keep the interview engaging and informative
-        11. Be mindful that this is a real interview for ${interviewAgentData.companyName}
-        12. Take notes on key responses for evaluation purposes
+        1. **IMPORTANT: This is a ${sessionData.data.rounds} interview - adjust your questioning depth and complexity accordingly**
+        2. Follow the interview behavior guidelines: ${interviewAgentData.interviewBehavior || 'Standard professional interview'}
+        3. Be professional and friendly throughout the interview
+        4. Ask relevant questions based on the candidate's resume, experience, and skills
+        5. Focus on their technical expertise, especially: ${resumeData?.parsedData?.skills.slice(0, 5).join(', ') || 'their technical background'}
+        6. Discuss their work experience at: ${resumeData?.parsedData?.workExperience.map((exp) => exp.company).join(', ') || 'their previous companies'}
+        7. Explore their projects and achievements in detail
+        8. Ask about their ${resumeData?.parsedData?.totalYearsExperience || 'professional'} years of experience
+        9. Provide constructive feedback when appropriate
+        10. Maintain a conversational flow and keep the candidate engaged
+        11. Focus on their potential fit for the role at ${interviewAgentData.companyName}
+        12. Keep the interview engaging and informative
+        13. Be mindful that this is a real interview for ${interviewAgentData.companyName}
+        14. Take notes on key responses for evaluation purposes
+        15. **ROUNDS-BASED EVALUATION: Use the ${sessionData.data.rounds} structure to determine appropriate interview depth and assessment criteria**
 
-        QUESTION SUGGESTIONS BASED ON RESUME:
+        QUESTION SUGGESTIONS BASED ON RESUME AND ROUNDS:
+        - **ROUNDS-SPECIFIC QUESTIONS**: Adapt question complexity based on ${sessionData.data.rounds} interview level
         - Ask about their experience with ${resumeData?.parsedData?.skills.slice(0, 3).join(', ') || 'their technical skills'}
         - Discuss their role at ${resumeData?.parsedData?.workExperience[0]?.company || 'their current company'} and key achievements
         - Explore their ${resumeData?.parsedData?.totalYearsExperience || 'professional'} years of experience in detail
         - Ask about specific projects they've worked on
         - Discuss their educational background from ${resumeData?.parsedData?.education[0]?.institution || 'their institution'}
         - Ask about their career goals and why they want to work at ${interviewAgentData.companyName}
+        - **INTERVIEW BEHAVIOR**: Maintain ${interviewAgentData.interviewBehavior || 'standard professional'} interview style throughout
 
         Remember: You are conducting a real interview for ${interviewAgentData.companyName}. Take this seriously and provide value to both the candidate and the company. Make this a meaningful experience for the candidate while gathering the information needed for evaluation. Use the detailed resume information to ask specific, relevant questions that demonstrate your understanding of their background.`;
 
@@ -260,15 +299,21 @@ export default defineAgent({
 
     if (sessionId) {
       try {
+        console.log(`Fetching session data for sessionId: ${sessionId}`);
         const sessionData = await fetchSessionData(sessionId);
+        console.log('Session data fetched successfully, creating prompt...');
         dynamicPrompt = createPromptFromSessionData(sessionData);
-        console.log('Dynamic prompt created from session data', dynamicPrompt);
+        console.log('Dynamic prompt created successfully from session data');
       } catch (error) {
-        console.error('Error fetching session data:', error);
-        console.log('Using default prompt');
+        console.error('Error fetching or processing session data:', error);
+        console.error('Error details:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined
+        });
+        console.log('Using default prompt due to error');
       }
     } else {
-      console.log('No session ID found, using default prompt');
+      console.log('No session ID found in participant metadata, using default prompt');
     }
 
     const initialContext = new llm.ChatContext().append({
@@ -294,22 +339,35 @@ export default defineAgent({
       },
     };
 
-    const agent = new pipeline.VoicePipelineAgent(
-      vad,
-      new deepgram.STT({ model: 'nova-3-general', language: 'en-US' }),
-      new openai.LLM({ model: 'gpt-4o-mini' }),
-      new openai.TTS({
-        apiKey: process.env.OPENAI_API_KEY!,
-        // model: 'tts-1',           // stable
-        // model: 'tts-1-hd',        // higher quality
-        model: 'gpt-4o-mini-tts', // newest, good latency/quality
-        voice: 'alloy', // pick any supported voice
-        // format: 'pcm16',             // PCM frames for LiveKit pipeline
-        // sampleRate: 24000            // typical; match your pipeline
-      }),
-      { chatCtx: initialContext, fncCtx },
-    );
-    agent.start(ctx.room, participant);
+    try {
+      console.log('Initializing VoicePipelineAgent...');
+      const agent = new pipeline.VoicePipelineAgent(
+        vad,
+        new deepgram.STT({ model: 'nova-3-general', language: 'en-US' }),
+        new openai.LLM({ model: 'gpt-4o-mini' }),
+        new openai.TTS({
+          apiKey: process.env.OPENAI_API_KEY!,
+          // model: 'tts-1',           // stable
+          // model: 'tts-1-hd',        // higher quality
+          model: 'gpt-4o-mini-tts', // newest, good latency/quality
+          voice: 'alloy', // pick any supported voice
+          // format: 'pcm16',             // PCM frames for LiveKit pipeline
+          // sampleRate: 24000            // typical; match your pipeline
+        }),
+        { chatCtx: initialContext, fncCtx },
+      );
+      
+      console.log('Starting agent...');
+      agent.start(ctx.room, participant);
+      console.log('Agent started successfully');
+    } catch (error) {
+      console.error('Error initializing or starting agent:', error);
+      console.error('Agent error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      throw error; // Re-throw to ensure the process fails fast with clear error
+    }
   },
 });
 
