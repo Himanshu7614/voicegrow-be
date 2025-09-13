@@ -108,7 +108,7 @@ interface InterviewAgentData {
 // Function to fetch session data from API
 async function fetchSessionData(sessionId: string): Promise<SessionData> {
   try {
-    const response = await fetch(`http://localhost:3000/api/interview-sessions/${sessionId}`);
+    const response = await fetch(`https://api.grow100x.ai/api/interview-sessions/${sessionId}`);
 
     if (!response.ok) {
       console.error(`API request failed with status: ${response.status}, statusText: ${response.statusText}`);
