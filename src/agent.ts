@@ -344,6 +344,8 @@ export default defineAgent({
         }
       );
       await agent.start(ctx.room, participant);
+      await agent.say("Hello! Welcome to the interview, I am mira, your interview assistant. Let's begin with your introduction.");
+
     } catch (error) {
       console.error('Error initializing or starting agent:', error);
       throw error;
