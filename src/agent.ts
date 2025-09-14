@@ -324,29 +324,32 @@ export default defineAgent({
     try {
       const agent = new pipeline.VoicePipelineAgent(
         vad,
-        new deepgram.STT({ model: 'nova-3-general', language: 'en-US' }),
-        new openai.LLM({ model: 'gpt-4o-mini' }),
+        new deepgram.STT({
+          model: 'nova-3-general',
+          language: 'en-US',
+        }),
+        new openai.LLM({
+          model: 'gpt-4o-mini',
+        }),
         new openai.TTS({
           apiKey: process.env.OPENAI_API_KEY!,
-          // model: 'tts-1',           // stable
-          // model: 'tts-1-hd',        // higher quality
-          model: 'gpt-4o-mini-tts', // newest, good latency/quality
-          voice: 'alloy', // pick any supported voice
-          // format: 'pcm16',             // PCM frames for LiveKit pipeline
-          // sampleRate: 24000            // typical; match your pipeline
+          model: 'tts-1',
+          voice: 'nova',
         }),
-        { chatCtx: initialContext, fncCtx },
+        {
+          chatCtx: initialContext,
+          fncCtx,
+          allowInterruptions: false,   // 👈 This makes agent finish before listening
+          minEndpointingDelay: 0.5,   // wait a short pause before treating user input as "done"
+        }
       );
-      
-      agent.start(ctx.room, participant);
+      await agent.start(ctx.room, participant);
     } catch (error) {
       console.error('Error initializing or starting agent:', error);
-      console.error('Agent error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      throw error; // Re-throw to ensure the process fails fast with clear error
+      throw error;
     }
+    
+    
   },
 });
 
