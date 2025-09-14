@@ -163,8 +163,8 @@ function createPromptFromSessionData(sessionData: SessionData): string {
         - Interview Behavior: ${interviewAgentData.interviewBehavior || 'Standard professional interview'}
 
         CANDIDATE PROFILE:
-        - Name: ${userData.fullName}
-        - Email: ${userData.email}`;
+        - Name: ${resumeData?.parsedData?.fullName}
+        - Email: ${resumeData?.parsedData?.email}`;
 
     // Add detailed resume information if available
     if (resumeData && resumeData.parsedData) {
