@@ -15,7 +15,6 @@ import dotenv from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '../.env.local');
 dotenv.config({ path: envPath });
@@ -103,6 +102,9 @@ interface InterviewAgentData {
   prompt: string;
   companyName: string;
   interviewBehavior?: string;
+  roleDesignation?: string;
+  interviewTone?: string;
+  interviewType?: string;
 }
 
 // Function to fetch session data from API
@@ -130,7 +132,129 @@ async function fetchSessionData(sessionId: string): Promise<SessionData> {
   }
 }
 
-// Note: Complex parsing functions removed since API now returns proper JSON objects
+// Function to get role-specific interview guidance
+function getRoleSpecificGuidance(roleDesignation?: string): string {
+  if (!roleDesignation) {
+    return `- Focus on general professional competencies and role-agnostic skills
+    - Assess problem-solving abilities and communication skills
+    - Evaluate cultural fit and motivation for the position`;
+  }
+
+  const role = roleDesignation.toLowerCase();
+  
+  if (role.includes('advocate') || role.includes('legal') || role.includes('attorney')) {
+    return `- Focus on legal knowledge, case analysis, and client advocacy skills
+    - Ask about experience with litigation, legal research, and document drafting
+    - Assess communication skills for client interactions and court presentations
+    - Evaluate understanding of legal procedures and regulatory compliance
+    - Discuss experience with legal technology and case management systems`;
+  }
+  
+  if (role.includes('developer') || role.includes('engineer') || role.includes('programmer')) {
+    return `- Focus on technical skills, coding abilities, and problem-solving
+    - Ask about programming languages, frameworks, and development methodologies
+    - Assess experience with version control, testing, and deployment processes
+    - Evaluate system design thinking and architecture knowledge
+    - Discuss experience with agile development and collaboration tools`;
+  }
+  
+  if (role.includes('manager') || role.includes('lead') || role.includes('director')) {
+    return `- Focus on leadership, team management, and strategic thinking
+    - Ask about experience managing teams, projects, and budgets
+    - Assess decision-making abilities and conflict resolution skills
+    - Evaluate experience with performance management and team development
+    - Discuss strategic planning and business acumen`;
+  }
+  
+  if (role.includes('sales') || role.includes('business development')) {
+    return `- Focus on sales skills, relationship building, and market knowledge
+    - Ask about sales methodologies, CRM experience, and target achievement
+    - Assess communication and negotiation skills
+    - Evaluate understanding of sales cycles and customer relationship management
+    - Discuss experience with lead generation and market analysis`;
+  }
+  
+  if (role.includes('marketing') || role.includes('digital marketing')) {
+    return `- Focus on marketing strategies, campaign management, and analytics
+    - Ask about experience with digital marketing tools and platforms
+    - Assess creativity, brand awareness, and content creation skills
+    - Evaluate understanding of marketing metrics and ROI measurement
+    - Discuss experience with social media, SEO, and paid advertising`;
+  }
+  
+  if (role.includes('analyst') || role.includes('data')) {
+    return `- Focus on analytical skills, data interpretation, and reporting
+    - Ask about experience with data analysis tools and statistical methods
+    - Assess problem-solving abilities and attention to detail
+    - Evaluate experience with data visualization and presentation skills
+    - Discuss understanding of business intelligence and data-driven decision making`;
+  }
+  
+  // Default guidance for other roles
+  return `- Focus on role-specific competencies and industry knowledge
+    - Assess relevant technical skills and experience
+    - Evaluate problem-solving abilities and critical thinking
+    - Discuss industry trends and professional development goals
+    - Assess cultural fit and alignment with company values`;
+}
+
+// Function to get interview type specific guidance
+function getInterviewTypeGuidance(interviewType?: string): string {
+  if (!interviewType) {
+    return `- Conduct a balanced interview covering technical and behavioral aspects
+    - Focus on both role-specific skills and cultural fit
+    - Ask a mix of competency-based and situational questions`;
+  }
+
+  const type = interviewType.toLowerCase();
+  
+  if (type.includes('technical') || type.includes('coding') || type.includes('skills')) {
+    return `- **Primary Focus**: Technical competency and domain expertise
+    - Ask detailed technical questions relevant to the role
+    - Include practical problem-solving scenarios and case studies
+    - Assess depth of knowledge in required technologies/tools
+    - Include 1-2 behavioral questions to assess communication skills
+    - Ask about specific projects and technical challenges faced
+    - Evaluate approach to learning new technologies and staying updated`;
+  }
+  
+  if (type.includes('hr') || type.includes('cultural') || type.includes('behavioral')) {
+    return `- **Primary Focus**: Cultural fit, values alignment, and behavioral competencies
+    - Ask about work style, team collaboration, and conflict resolution
+    - Assess motivation, career goals, and alignment with company values
+    - Include situational questions about handling difficult situations
+    - Ask about leadership experience and people management (if applicable)
+    - Evaluate communication skills and emotional intelligence
+    - Include 1-2 technical questions to assess basic role competency`;
+  }
+  
+  if (type.includes('screening') || type.includes('initial') || type.includes('phone')) {
+    return `- **Primary Focus**: Basic qualifications, interest, and initial fit assessment
+    - Confirm key qualifications and experience level
+    - Assess genuine interest in the role and company
+    - Discuss availability, notice period, and salary expectations
+    - Ask about career goals and motivation for change
+    - Evaluate communication skills and professional demeanor
+    - Keep questions high-level and avoid deep technical details`;
+  }
+  
+  if (type.includes('final') || type.includes('panel') || type.includes('executive')) {
+    return `- **Primary Focus**: Comprehensive assessment and final decision making
+    - Combine technical, behavioral, and cultural fit evaluation
+    - Ask strategic and high-level thinking questions
+    - Assess leadership potential and growth trajectory
+    - Evaluate fit with senior team and company culture
+    - Discuss long-term career vision and company alignment
+    - Include scenario-based questions for complex situations`;
+  }
+  
+  // Default guidance for other interview types
+  return `- **Primary Focus**: Comprehensive role assessment
+    - Balance technical skills with behavioral competencies
+    - Assess both immediate role fit and growth potential
+    - Include a mix of competency-based and situational questions
+    - Evaluate communication skills and cultural alignment`;
+}
 
 // Function to create prompt from session data
 function createPromptFromSessionData(sessionData: SessionData): string {
@@ -154,76 +278,76 @@ function createPromptFromSessionData(sessionData: SessionData): string {
     const resumeData = sessionData.data.resumeId;
 
     // Create a comprehensive prompt based on the session data
-    let prompt = `You are MIRA, an AI interview assistant conducting an voice interview for ${interviewAgentData.companyName}.
+    let prompt = `You are MIRA, an AI interview assistant conducting a ${sessionData.data.rounds} interview for the position of ${interviewAgentData.roleDesignation || 'the role'} at ${interviewAgentData.companyName}.
 
 
-    INTERVIEW CONTEXT:
-    - Company: ${interviewAgentData.companyName}
-    - Candidate: ${resumeData?.parsedData?.fullName}
-    - Interview Type : ${sessionData.data.rounds}
-    - Interview Tone : ${interviewAgentData.interviewBehavior}
+          INTERVIEW CONTEXT:
+          - Company: ${interviewAgentData.companyName}
+          - Position: ${interviewAgentData.roleDesignation || 'Not specified'}
+          - Interview Type: ${sessionData.data.rounds || sessionData.data.rounds}
+          - Interview Tone: ${interviewAgentData.interviewTone || interviewAgentData.interviewBehavior || 'Professional'}
+          - Candidate: ${resumeData?.parsedData?.fullName}
 
+          
+          
+          CANDIDATE PROFILE:
+          - Name: ${resumeData?.parsedData?.fullName}
+          - Email: ${resumeData?.parsedData?.email}`;
     
     
-    CANDIDATE PROFILE:
-    - Name: ${resumeData?.parsedData?.fullName}
-    - Email: ${resumeData?.parsedData?.email}`;
-    
-    
-    // Add detailed resume information if available
-    if (resumeData && resumeData.parsedData) {
-      const resume = resumeData.parsedData;
-    
-    
-      prompt += `
-    
-          
-          DETAILED CANDIDATE RESUME:
-          - Current Job Title: ${resume.currentJobTitle}
-          - Total Experience: ${resume.totalYearsExperience} years
-          - Location: ${resume.location}
-          - Phone: ${resume.phone}
-          
-          
-          PROFESSIONAL SUMMARY:
-          ${resume.summary}
-          
-          
-          TECHNICAL SKILLS:
-          ${resume.skills.join(', ')}
-          
-          
-          EDUCATION:
-          ${resume.education.map((edu) => `- ${edu.degree} from ${edu.institution}`).join('\n')}
-          
-          
-          WORK EXPERIENCE:
-          ${resume.workExperience
-              .map(
-                (exp) => `
-          Company: ${exp.company}
-          Role: ${exp.role}
-          Duration: ${exp.duration}
-          Location: ${exp.location}
-          Key Achievements:
-          ${exp.description.map((desc) => `  • ${desc}`).join('\n')}
-          `,
-              )
-              .join('\n')}
-          
-          
-          PROJECTS:
-          ${resume.projects
-              .map(
-                (proj) => `
-          - ${proj.description}
-            Technologies: ${proj.technologies.join(', ')}
-            Link: ${proj.link}
-          `,
-              )
-              .join('\n')}`;
+          if (resumeData && resumeData.parsedData) {
+        const resume = resumeData.parsedData;
+      
+      
+        prompt += `
+      
+            
+            DETAILED CANDIDATE RESUME:
+            - Current Job Title: ${resume.currentJobTitle}
+            - Total Experience: ${resume.totalYearsExperience} years
+            - Location: ${resume.location}
+            - Phone: ${resume.phone}
+            
+            
+            PROFESSIONAL SUMMARY:
+            ${resume.summary}
+            
+            
+            TECHNICAL SKILLS:
+            ${resume.skills.join(', ')}
+            
+            
+            EDUCATION:
+            ${resume.education.map((edu) => `- ${edu.degree} from ${edu.institution}`).join('\n')}
+            
+            
+            WORK EXPERIENCE:
+            ${resume.workExperience
+                .map(
+                  (exp) => `
+            Company: ${exp.company}
+            Role: ${exp.role}
+            Duration: ${exp.duration}
+            Location: ${exp.location}
+            Key Achievements:
+            ${exp.description.map((desc) => `  • ${desc}`).join('\n')}
+            `,
+                )
+                .join('\n')}
+            
+            
+            PROJECTS:
+            ${resume.projects
+                .map(
+                  (proj) => `
+            - ${proj.description}
+              Technologies: ${proj.technologies.join(', ')}
+              Link: ${proj.link}
+            `,
+                )
+                .join('\n')}`;
           }
-          
+            
           
           prompt += `
           
@@ -258,22 +382,32 @@ function createPromptFromSessionData(sessionData: SessionData): string {
               - Ask 2 functional questions (especially if people management is part of the role)
           
           
+          ROLE-SPECIFIC INTERVIEW FOCUS:
+          ${getRoleSpecificGuidance(interviewAgentData.roleDesignation)}
+          
+          
+          INTERVIEW TYPE ENHANCED GUIDANCE:
+          ${getInterviewTypeGuidance(sessionData.data.rounds || sessionData.data.rounds)}
+          
+          
           INTERVIEW SUGGESTIONS:
           - Tailor questions based on their experience with: ${resumeData?.parsedData?.skills.slice(0, 5).join(', ') || 'relevant skills'}
           - Dive into their achievements at: ${resumeData?.parsedData?.workExperience.map((exp) => exp.company).join(', ') || 'their previous employers'}
           - Understand their project ownership and problem-solving mindset
-          - Explore motivations: “Why are you applying to ${interviewAgentData.companyName}?”
+          - Explore motivations: "Why are you applying to ${interviewAgentData.companyName} for the ${interviewAgentData.roleDesignation || 'position'} role?"
+          - Focus on ${interviewAgentData.roleDesignation ? `role-specific competencies for ${interviewAgentData.roleDesignation}` : 'general professional competencies'}
+          - Adapt questioning style to ${sessionData.data.rounds || 'the interview type'} requirements
           
           
           FINAL REMINDERS:
-          - Keep the interview focused and professional
-          - Keep the tone friendly but direct — no excessive politeness
-          - Take real-time notes for evaluation
-          - Respect the candidate’s time and experience
+          - Keep the interview focused and professional, tailored to ${interviewAgentData.roleDesignation || 'the role'}
+          - Maintain a ${interviewAgentData.interviewTone || 'professional'} tone throughout the ${sessionData.data.rounds || 'interview'}
+          - Take real-time notes for evaluation, focusing on ${interviewAgentData.roleDesignation ? `${interviewAgentData.roleDesignation}-specific competencies` : 'role-relevant skills'}
+          - Respect the candidate's time and experience
           - Make this an efficient and valuable session for both sides
+          - Remember: You are conducting a ${sessionData.data.rounds || 'professional'} interview for ${interviewAgentData.roleDesignation || 'the position'} at ${interviewAgentData.companyName}
           
-          
-    Begin when ready.`;
+          Begin when ready.`;
     
     return prompt;
   } catch (error) {
@@ -284,13 +418,13 @@ function createPromptFromSessionData(sessionData: SessionData): string {
 }
 
 export default defineAgent({
-  prewarm: async (proc: JobProcess) => {
-    proc.userData.vad = await silero.VAD.load();
-  },
-  entry: async (ctx: JobContext) => {
-    const vad = ctx.proc.userData.vad! as silero.VAD;
-    await ctx.connect();
-    const participant = await ctx.waitForParticipant();
+    prewarm: async (proc: JobProcess) => {
+      proc.userData.vad = await silero.VAD.load();
+    },
+    entry: async (ctx: JobContext) => {
+      const vad = ctx.proc.userData.vad! as silero.VAD;
+      await ctx.connect();
+      const participant = await ctx.waitForParticipant();
 
     let sessionId: string | null = null;
     try {
@@ -371,9 +505,7 @@ export default defineAgent({
     } catch (error) {
       console.error('Error initializing or starting agent:', error);
       throw error;
-    }
-    
-    
+    }   
   },
 });
 
