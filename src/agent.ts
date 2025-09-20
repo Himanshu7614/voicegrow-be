@@ -133,7 +133,7 @@ async function fetchSessionData(sessionId: string): Promise<SessionData> {
 }
 
 // Function to get role-specific interview guidance
-function getRoleSpecificGuidance(roleDesignation?: string): string {
+function getRoleSpecificGuidance(roleDesignation?: string,companyName?: string): string {
   if (!roleDesignation) {
     return `- Focus on general professional competencies and role-agnostic skills
     - Assess problem-solving abilities and communication skills
@@ -360,30 +360,42 @@ function createPromptFromSessionData(sessionData: SessionData): string {
           
           
           BEHAVIOR GUIDELINES:
-          1. Ask **a maximum of 15 questions**, and **a minimum of 3** — depending on the candidate’s engagement.
-          2. Do **not** repeat the candidate’s previous responses unless needed for context; refer to earlier points only when relevant (limit to 30% of cases).
-          3. If the candidate does **not respond** to a question, pause and ask: “Would you like me to move to the next question?”
-          4. If there's **no response for over 90 seconds**, trigger a pop-up asking: “Would you like to discontinue the interview?”
-          5. If the candidate says “I am not the candidate,” “I don’t want to give the interview,” or behaves abusively or inappropriately, **politely end the interview**.
-          6. If asked “Who are you?” — reply: “I am the interviewer from ${interviewAgentData.companyName} for this role. Please feel free to ask questions about the job or company — but I won’t answer personal questions about myself.”
-          7. At the **end of the interview**, ask: “Do you have any questions for me?” and generate a response based on company info, JD, or a helpful summary.
+          1. Ask **a maximum of 20 questions**, and **a minimum of 8** — following a structured interview format.
+          2. **MUST ASK 2-3 specific questions** based on the candidate's resume details (experience, projects, skills).
+          3. Follow this interview structure:
+             - Opening (1-2 questions): Introduction and motivation
+             - Resume-based questions (2-3 questions): Specific to their background
+             - Role-specific questions (8-12 questions): Based on position and interview round
+             - Behavioral questions (3-4 questions): Situational and competency-based
+             - Closing (1-2 questions): Candidate questions and wrap-up
+          4. Do **not** repeat the candidate's previous responses unless needed for context; refer to earlier points only when relevant (limit to 30% of cases).
+          5. If the candidate does **not respond** to a question, pause and ask: "Would you like me to move to the next question?"
+          6. If there's **no response for over 90 seconds**, trigger a pop-up asking: "Would you like to discontinue the interview?"
+          7. If the candidate says "I am not the candidate," "I don't want to give the interview," or behaves abusively or inappropriately, **politely end the interview**.
+          8. If asked "Who are you?" — reply: "I am the interviewer from ${interviewAgentData.companyName} for this role. Please feel free to ask questions about the job or company — but I won't answer personal questions about myself."
+          9. At the **end of the interview**, ask: "Do you have any questions for me?" and generate a response based on company info, JD, or a helpful summary.
           
+
+          MANDATORY RESUME-BASED QUESTIONS (Ask 2-3 of these):
+          ${resumeData && resumeData.parsedData ? `
+          - "I see you worked at ${resumeData.parsedData.workExperience[0]?.company || 'your previous company'} as a ${resumeData.parsedData.workExperience[0]?.role || 'professional'}. Can you walk me through your biggest achievement there and how it impacted the business?"
+          - "Your resume shows experience with ${resumeData.parsedData.skills.slice(0, 3).join(', ')}. Can you give me a specific example of how you used these skills to solve a complex problem?"
+          - "I notice you have ${resumeData.parsedData.totalYearsExperience} years of experience. What's the most significant project you've led, and what challenges did you overcome?"
+          - "Looking at your project experience with ${resumeData.parsedData.projects[0]?.technologies?.join(', ') || 'various technologies'}, can you explain the technical approach you took and the results achieved?"
+          - "Your education background includes ${resumeData.parsedData.education[0]?.degree || 'your degree'}. How has this foundation helped you in your career progression?"
+          ` : `
+          - "Can you walk me through your most significant professional achievement and how it impacted your previous organization?"
+          - "What specific skills or technologies have you mastered that you believe are most relevant to this role?"
+          - "Tell me about a challenging project you've led and how you overcame the obstacles you faced."
+          `}
           
-          Interview Type Specific Questioning Logic:
-          - If this is a **Screening test by recruiter**: 
-              - Ask about interest in the company/role
-              - Confirm notice period, location, years of experience
-              - Discuss salary expectations and key skills
-          - If this is a **Technical Interview**: 
-              - Focus on domain knowledge, role-specific technical questions
-              - Ask 1–2 questions on soft skills (communication, problem-solving)
-          - If this is an **HR Round / Culture Fitment**:
-              - Ask about team behavior, conflict resolution, growth mindset, values
-              - Ask 2 functional questions (especially if people management is part of the role)
-          
-          
+          COMPANY-SPECIFIC INTERVIEW FOCUS:
+            - ask question those question that earler interview asked in this company ${interviewAgentData.companyName}
+            - ask question that is relevant to the company ${interviewAgentData.companyName}
+            
+
           ROLE-SPECIFIC INTERVIEW FOCUS:
-          ${getRoleSpecificGuidance(interviewAgentData.roleDesignation)}
+          ${getRoleSpecificGuidance(interviewAgentData.roleDesignation,interviewAgentData.companyName )}
           
           
           INTERVIEW TYPE ENHANCED GUIDANCE:
@@ -485,7 +497,7 @@ export default defineAgent({
           language: 'en-US',
         }),
         new openai.LLM({
-          model: 'gpt-4o-mini',
+          model: 'gpt-4',
         }),
         new openai.TTS({
           apiKey: process.env.OPENAI_API_KEY!,
