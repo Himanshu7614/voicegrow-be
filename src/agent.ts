@@ -490,13 +490,13 @@ export default defineAgent({
         new openai.TTS({
           apiKey: process.env.OPENAI_API_KEY!,
           model: 'tts-1',
-          voice: 'nova',
+          voice: 'sage',
         }),
         {
           chatCtx: initialContext,
           fncCtx,
           allowInterruptions: false,   // 👈 This makes agent finish before listening
-          minEndpointingDelay: 0.5,   // wait a short pause before treating user input as "done"
+          minEndpointingDelay: 1.5,   // wait a short pause before treating user input as "done"
         }
       );
       await agent.start(ctx.room, participant);
