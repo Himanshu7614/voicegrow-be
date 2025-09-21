@@ -498,11 +498,12 @@ export default defineAgent({
         }),
         new openai.LLM({
           model: 'gpt-4o-mini',
+          temperature: 0.7,        
         }),
         new openai.TTS({
           apiKey: process.env.OPENAI_API_KEY!,
           model: 'tts-1',
-          voice: 'ballad',
+          voice: 'alloy',
         }),
         {
           chatCtx: initialContext,
