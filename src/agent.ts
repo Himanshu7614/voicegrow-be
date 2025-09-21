@@ -471,30 +471,30 @@ export default defineAgent({
       text: dynamicPrompt,
     });
 
-    const fncCtx: llm.FunctionContext = {
-      weather: {
-        description: 'Get the weather in a location',
-        parameters: z.object({
-          location: z.string().describe('The location to get the weather for'),
-        }),
-        execute: async ({ location }) => {
-          console.debug(`executing weather function for ${location}`);
-          const response = await fetch(`https://wttr.in/${location}?format=%C+%t`);
-          if (!response.ok) {
-            throw new Error(`Weather API returned status: ${response.status}`);
-          }
-          const weather = await response.text();
-          return `The weather in ${location} right now is ${weather}.`;
-        },
-      },
-    };
+    // const fncCtx: llm.FunctionContext = {
+    //   weather: {
+    //     description: 'Get the weather in a location',
+    //     parameters: z.object({
+    //       location: z.string().describe('The location to get the weather for'),
+    //     }),
+    //     execute: async ({ location }) => {
+    //       console.debug(`executing weather function for ${location}`);
+    //       const response = await fetch(`https://wttr.in/${location}?format=%C+%t`);
+    //       if (!response.ok) {
+    //         throw new Error(`Weather API returned status: ${response.status}`);
+    //       }
+    //       const weather = await response.text();
+    //       return `The weather in ${location} right now is ${weather}.`;
+    //     },
+    //   },
+    // };
 
     try {
       const agent = new pipeline.VoicePipelineAgent(
         vad,
         new deepgram.STT({
           model: 'nova-3-general',
-          language: 'en-US',
+          language: 'en-IN',
         }),
         new openai.LLM({
           model: 'gpt-4o-mini',
@@ -503,11 +503,11 @@ export default defineAgent({
         new openai.TTS({
           apiKey: process.env.OPENAI_API_KEY!,
           model: 'tts-1',
-          voice: 'alloy',
+          voice: 'nova',
         }),
         {
           chatCtx: initialContext,
-          fncCtx,
+          // fncCtx,
           allowInterruptions: false,        // 👈 Prevents interruptions during agent speech
           minEndpointingDelay: 3.5,        // 👈 Wait 2.5 seconds before treating user input as "done"
           interruptMinWords: 6,            // 👈 Require 3+ words for any interruption attempt
