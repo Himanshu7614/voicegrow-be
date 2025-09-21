@@ -497,18 +497,20 @@ export default defineAgent({
           language: 'en-US',
         }),
         new openai.LLM({
-          model: 'gpt-4',
+          model: 'gpt-4o-mini',
         }),
         new openai.TTS({
           apiKey: process.env.OPENAI_API_KEY!,
           model: 'tts-1',
-          voice: 'sage',
+          voice: 'ballad',
         }),
         {
           chatCtx: initialContext,
           fncCtx,
-          allowInterruptions: false,   // 👈 This makes agent finish before listening
-          minEndpointingDelay: 1.5,   // wait a short pause before treating user input as "done"
+          allowInterruptions: false,        // 👈 Prevents interruptions during agent speech
+          minEndpointingDelay: 3.5,        // 👈 Wait 2.5 seconds before treating user input as "done"
+          interruptMinWords: 6,            // 👈 Require 3+ words for any interruption attempt
+          interruptSpeechDuration: 4.0,    // 👈 Require 1 second of speech for interruption
         }
       );
       await agent.start(ctx.room, participant);
