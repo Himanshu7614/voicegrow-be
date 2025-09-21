@@ -510,8 +510,8 @@ export default defineAgent({
           // fncCtx,
           allowInterruptions: false,        // 👈 Prevents interruptions during agent speech
           minEndpointingDelay: 3.5,        // 👈 Wait 2.5 seconds before treating user input as "done"
-          interruptMinWords: 6,            // 👈 Require 3+ words for any interruption attempt
-          interruptSpeechDuration: 4.0,    // 👈 Require 1 second of speech for interruption
+          // interruptMinWords: 6,            // 👈 Require 3+ words for any interruption attempt
+          // interruptSpeechDuration: 4.0,    // 👈 Require 1 second of speech for interruption
         }
       );
       await agent.start(ctx.room, participant);
