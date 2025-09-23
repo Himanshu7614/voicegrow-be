@@ -490,6 +490,7 @@ export default defineAgent({
     // };
 
     try {
+      console.log("initialContext",initialContext);
       const agent = new pipeline.VoicePipelineAgent(
         vad,
         new deepgram.STT({
